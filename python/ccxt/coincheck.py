@@ -161,6 +161,41 @@ class coincheck (Exchange):
         response = self.publicGetTrades(params)
         return self.parse_trades(response, market, since, limit)
 
+    def fetch_open_orders(self, symbol=None, since=None, limit=None, params={}):
+        self.load_markets()
+        market = None
+        request = {
+            # 'is_token': False,
+            # 'is_token_both': False,
+        }
+        if symbol:
+            market = self.market(symbol)
+            request['currency_pair'] = market['id']
+        response = self.privatePostActiveOrders(self.extend(request, params))
+        return self.parse_orders(response['orders'], market, since, limit)
+
+    def parse_order(self, order, market=None):
+        if not market:
+            market = self.markets_by_id[order['currency_pair']]
+        price = order['rate']
+        amount = order['pending_amount']
+        return {
+            'id': str(order['id']),
+            'timestamp': self.parse8601(order["created_at"]),
+            'datetime': order["created_at"],
+            'status': 'open',
+            'symbol': market['symbol'],
+            'type': 'limit',
+            'side': order['order_type'],
+            'price': price,
+            'cost': price * amount,
+            'amount': amount,
+            'filled': None,
+            'remaining': None,
+            'trades': None,
+            'fee': None,
+        }
+
     def create_order(self, symbol, type, side, amount, price=None, params={}):
         prefix = ''
         order = {
